@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Piano Web Interactivo</title>
+  <style>
+    :root {
+      --bg1: #0f172a;
+      --bg2: #1e293b;
+      --panel: rgba(255,255,255,0.08);
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+      --white-key: #f8fafc;
+      --white-key-border: #cbd5e1;
+      --black-key: #0f172a;
+      --shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1d4ed8 0%, var(--bg1) 35%, #020617 100%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(1200px, 100%);
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 1.05;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 14px;
+      border-radius: 18px;
+    }
+
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 150px;
+    }
+
+    .control label {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    select, input[type="range"], button {
+      border: none;
+      border-radius: 12px;
+      font: inherit;
+    }
+
+    select, button {
+      padding: 10px 12px;
+      background: #e2e8f0;
+      color: #0f172a;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #38bdf8, #22c55e);
+      color: #082f49;
+      font-weight: 700;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .pill {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+
+    .piano-wrap {
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .piano {
+      position: relative;
+      width: 980px;
+      max-width: 100%;
+      height: 320px;
+      margin: 0 auto;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .white-keys {
+      display: flex;
+      position: absolute;
+      inset: 0;
+      gap: 0;
+    }
+
+    .white-key,
+    .black-key {
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.05s ease, box-shadow 0.08s ease, background 0.08s ease;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      font-weight: 700;
+    }
+
+    .white-key {
+      width: 70px;
+      height: 100%;
+      background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%);
+      border: 1px solid var(--white-key-border);
+      border-bottom-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      color: #334155;
+      padding-bottom: 14px;
+      box-shadow: inset 0 -8px 0 rgba(148,163,184,0.15);
+    }
+
+    .white-key.active {
+      background: linear-gradient(180deg, #bae6fd 0%, #dbeafe 100%);
+      transform: translateY(2px);
+      box-shadow: inset 0 -4px 0 rgba(59,130,246,0.25);
+    }
+
+    .black-keys {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .black-key {
+      position: absolute;
+      top: 0;
+      width: 44px;
+      height: 190px;
+      background: linear-gradient(180deg, #334155 0%, #020617 100%);
+      border: 1px solid #0f172a;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      color: #e2e8f0;
+      padding-bottom: 12px;
+      z-index: 3;
+      pointer-events: auto;
+      box-shadow: 0 10px 18px rgba(0,0,0,0.35);
+    }
+
+    .black-key.active {
+      background: linear-gradient(180deg, #0ea5e9 0%, #082f49 100%);
+      transform: translateY(2px);
+    }
+
+    .key-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      pointer-events: none;
+    }
+
+    .kbd {
+      font-size: 0.9rem;
+      font-weight: 800;
+      opacity: 0.95;
+    }
+
+    .note {
+      font-size: 0.72rem;
+      opacity: 0.75;
+      font-weight: 600;
+    }
+
+    .footer {
+      margin-top: 18px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .legend-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .legend-card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .piano {
+        width: 840px;
+        height: 280px;
+      }
+      .white-key { width: 60px; }
+      .black-key { width: 38px; height: 168px; }
+    }
+
+    @media (max-width: 640px) {
+      .app { padding: 18px; }
+      .controls { width: 100%; }
+      .control { min-width: 100%; }
+      .piano { height: 250px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div>
+        <h1>🎹 Piano Web Interactivo</h1>
+        <p class="subtitle">
+          Tócalo con el ratón, con el dedo o con el teclado del ordenador. Usa las teclas blancas y negras para tocar dos octavas completas con sonido generado en tiempo real.
+        </p>
+      </div>
+
+      <div class="controls">
+        <div class="control">
+          <label for="waveform">Instrumento / onda</label>
+          <select id="waveform">
+            <option value="sine">Suave</option>
+            <option value="triangle" selected>Tipo piano</option>
+            <option value="square">Retro</option>
+            <option value="sawtooth">Brillante</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="volume">Volumen</label>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="0.35" />
+        </div>
+
+        <div class="control">
+          <label for="sustain">Duración</label>
+          <input id="sustain" type="range" min="0.3" max="2.5" step="0.05" value="1.2" />
+        </div>
+
+        <button id="panicBtn">Parar sonido</button>
+        <button id="demoBtn" class="primary">Demo</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="pill">Modo digital: ratón y táctil</div>
+      <div class="pill">Modo teclado: ordenador</div>
+      <div class="pill" id="nowPlaying">Sin nota activa</div>
+    </div>
+
+    <div class="piano-wrap">
+      <div class="piano" id="piano">
+        <div class="white-keys" id="whiteKeys"></div>
+        <div class="black-keys" id="blackKeys"></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-card">
+        <strong>Teclado — primera octava</strong>
+        Z, X, C, V, B, N, M = teclas blancas<br />
+        S, D, G, H, J = teclas negras
+      </div>
+      <div class="legend-card">
+        <strong>Teclado — segunda octava</strong>
+        Q, W, E, R, T, Y, U = teclas blancas<br />
+        2, 3, 5, 6, 7 = teclas negras
+      </div>
+      <div class="legend-card">
+        <strong>Consejo</strong>
+        Si no suena al principio, pulsa cualquier tecla del piano o del teclado para activar el audio del navegador.
+      </div>
+    </div>
+
+    <div class="footer">
+      Hecho en una sola página HTML con Web Audio API, sin dependencias externas. Puedes guardar este archivo y abrirlo en cualquier navegador moderno.
+    </div>
+  </div>
+
+  <script>
+    const notes = [
+      { note: 'C4', freq: 261.63, type: 'white', key: 'Z' },
+      { note: 'C#4', freq: 277.18, type: 'black', key: 'S', afterWhite: 0 },
+      { note: 'D4', freq: 293.66, type: 'white', key: 'X' },
+      { note: 'D#4', freq: 311.13, type: 'black', key: 'D', afterWhite: 1 },
+      { note: 'E4', freq: 329.63, type: 'white', key: 'C' },
+      { note: 'F4', freq: 349.23, type: 'white', key: 'V' },
+      { note: 'F#4', freq: 369.99, type: 'black', key: 'G', afterWhite: 3 },
+      { note: 'G4', freq: 392.00, type: 'white', key: 'B' },
+      { note: 'G#4', freq: 415.30, type: 'black', key: 'H', afterWhite: 4 },
+      { note: 'A4', freq: 440.00, type: 'white', key: 'N' },
+      { note: 'A#4', freq: 466.16, type: 'black', key: 'J', afterWhite: 5 },
+      { note: 'B4', freq: 493.88, type: 'white', key: 'M' },
+      { note: 'C5', freq: 523.25, type: 'white', key: 'Q' },
+      { note: 'C#5', freq: 554.37, type: 'black', key: '2', afterWhite: 7 },
+      { note: 'D5', freq: 587.33, type: 'white', key: 'W' },
+      { note: 'D#5', freq: 622.25, type: 'black', key: '3', afterWhite: 8 },
+      { note: 'E5', freq: 659.25, type: 'white', key: 'E' },
+      { note: 'F5', freq: 698.46, type: 'white', key: 'R' },
+      { note: 'F#5', freq: 739.99, type: 'black', key: '5', afterWhite: 10 },
+      { note: 'G5', freq: 783.99, type: 'white', key: 'T' },
+      { note: 'G#5', freq: 830.61, type: 'black', key: '6', afterWhite: 11 },
+      { note: 'A5', freq: 880.00, type: 'white', key: 'Y' },
+      { note: 'A#5', freq: 932.33, type: 'black', key: '7', afterWhite: 12 },
+      { note: 'B5', freq: 987.77, type: 'white', key: 'U' }
+    ];
+
+    const whiteKeysContainer = document.getElementById('whiteKeys');
+    const blackKeysContainer = document.getElementById('blackKeys');
+    const nowPlaying = document.getElementById('nowPlaying');
+    const waveformSelect = document.getElementById('waveform');
+    const volumeInput = document.getElementById('volume');
+    const sustainInput = document.getElementById('sustain');
+    const panicBtn = document.getElementById('panicBtn');
+    const demoBtn = document.getElementById('demoBtn');
+
+    const keyMap = new Map();
+    const activeNodes = new Map();
+    let audioCtx = null;
+
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function createKey(noteObj, index, whiteIndex) {
+      const key = document.createElement('button');
+      key.type = 'button';
+      key.className = noteObj.type === 'white' ? 'white-key' : 'black-key';
+      key.dataset.note = noteObj.note;
+      key.dataset.freq = noteObj.freq;
+      key.dataset.key = noteObj.key.toLowerCase();
+
+      key.innerHTML = `
+        <span class="key-label">
+          <span class="kbd">${noteObj.key}</span>
+          <span class="note">${noteObj.note}</span>
+        </span>
+      `;
+
+      if (noteObj.type === 'black') {
+        const whiteWidth = 70;
+        const blackWidth = 44;
+        const left = (noteObj.afterWhite + 1) * whiteWidth - blackWidth / 2;
+        key.style.left = `${left}px`;
+        blackKeysContainer.appendChild(key);
+      } else {
+        whiteKeysContainer.appendChild(key);
+      }
+
+      const triggerStart = () => playNote(noteObj.note, noteObj.freq, key);
+      const triggerEnd = () => stopVisual(key);
+
+      key.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        triggerStart();
+      });
+      key.addEventListener('pointerup', triggerEnd);
+      key.addEventListener('pointerleave', triggerEnd);
+      key.addEventListener('pointercancel', triggerEnd);
+
+      keyMap.set(noteObj.key.toLowerCase(), { ...noteObj, element: key });
+    }
+
+    function stopVisual(keyElement) {
+      if (keyElement) keyElement.classList.remove('active');
+      if (activeNodes.has(keyElement?.dataset?.note)) {
+        activeNodes.delete(keyElement.dataset.note);
+      }
+      nowPlaying.textContent = 'Sin nota activa';
+    }
+
+    function playNote(note, freq, keyElement) {
+      ensureAudioContext();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      const volume = parseFloat(volumeInput.value);
+      const sustain = parseFloat(sustainInput.value);
+      const waveform = waveformSelect.value;
+
+      osc.type = waveform;
+      osc.frequency.value = freq;
+
+      filter.type = 'lowpass';
+      filter.frequency.value = 2400;
+      filter.Q.value = 1;
+
+      const now = audioCtx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(Math.max(volume * 0.65, 0.001), now + 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + sustain);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + sustain + 0.05);
+
+      keyElement.classList.add('active');
+      nowPlaying.textContent = `Sonando: ${note} · tecla ${keyElement.dataset.key.toUpperCase()}`;
+      activeNodes.set(note, { osc, gain, keyElement });
+
+      osc.onended = () => {
+        keyElement.classList.remove('active');
+        if (nowPlaying.textContent.includes(note)) {
+          nowPlaying.textContent = 'Sin nota activa';
+        }
+        activeNodes.delete(note);
+      };
+    }
+
+    function stopAllSounds() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      activeNodes.forEach(({ osc, gain, keyElement }) => {
+        try {
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setTargetAtTime(0.0001, now, 0.03);
+          osc.stop(now + 0.08);
+        } catch (_) {}
+        keyElement.classList.remove('active');
+      });
+      activeNodes.clear();
+      nowPlaying.textContent = 'Sin nota activa';
+    }
+
+    notes.forEach((n, i) => createKey(n, i));
+
+    const pressedKeys = new Set();
+
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      if (pressedKeys.has(key)) return;
+      const noteData = keyMap.get(key);
+      if (!noteData) return;
+      pressedKeys.add(key);
+      playNote(noteData.note, noteData.freq, noteData.element);
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const key = e.key.toLowerCase();
+      pressedKeys.delete(key);
+      const noteData = keyMap.get(key);
+      if (noteData) stopVisual(noteData.element);
+    });
+
+    panicBtn.addEventListener('click', stopAllSounds);
+
+    demoBtn.addEventListener('click', async () => {
+      ensureAudioContext();
+      const melody = ['C4', 'D4', 'E4', 'G4', 'E4', 'D4', 'C4', 'G4', 'A4', 'G4', 'E4', 'C4'];
+      for (const noteName of melody) {
+        const noteData = notes.find(n => n.note === noteName);
+        if (noteData) {
+          playNote(noteData.note, noteData.freq, keyMap.get(noteData.key.toLowerCase()).element);
+        }
+        await new Promise(resolve => setTimeout(resolve, 230));
+      }
+    });
+  </script>
+</body>
+</html>
